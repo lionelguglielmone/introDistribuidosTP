@@ -5,7 +5,7 @@ import socket
 
 
 class StopAndWait():
-    def __init__(self, socket, addr, timeout=0.1, debug=False):
+    def __init__(self, socket, addr, timeout=0.1):
         self.socket = socket
         # maximum segment size
         self.mss = 1024
@@ -30,15 +30,13 @@ class StopAndWait():
         self.header["sqn"] = 1
         self.header["ack"] = 2
 
-        self.debug = debug
-
     def send(self, data):
         # separate data into segments
         data = [data[i:i+self.mss] for i in range(0, len(data), self.mss)]
         # send each segment
         for idx, segment in enumerate(data):
-            if self.debug:
-                logging.info("Sending chunk index: {}".format(idx))
+
+            logging.debug("Sending chunk index: {}".format(idx))
             self.send_segment(self.encodePacket(self.seq, 0, segment))
 
         # send empty segment to indicate end of transmission
@@ -68,20 +66,19 @@ class StopAndWait():
                 print("ackNum: {} sq: {} self.sq: {}".format(
                     ackNum, sq, self.seq))
                 if ackNum == 1 and sq == self.seq:
-                    if self.debug:
-                        logging.info(
-                            "Chunk acknowledged sequence: {}".format(self.seq))
+
+                    logging.debug(
+                        "Chunk acknowledged sequence: {}".format(self.seq))
                     # increment sequence number alternating bit
                     self.last_seq = sq
                     self.last_segment_data = packet
                     self.seq = (self.seq + 1) % 2
                     break
             except socket.timeout:
-                if self.debug:
-                    logging.info(
-                        "Timeout reached, resending chunk for seq: {}"
-                        .format(self.seq)
-                    )
+                logging.debug(
+                    "Timeout reached, resending chunk for seq: {}"
+                    .format(self.seq)
+                )
                 # If the acknowledgment is not received within the timeout
                 # period, resend the packet resend data
                 self.socket.send(packet)
@@ -104,10 +101,9 @@ class StopAndWait():
             return b''
         if (self.last_seq is not None) and (sq == self.last_seq):
             # we have received a duplicate packet
-            if self.debug:
-                logging("Received duplicate packet sequence: {}"
-                        .format(self.seq)
-                        )
+            logging.debug("Received duplicate packet sequence: {}"
+                          .format(self.seq)
+                          )
 
         # send acknowledgement to address
         self.send_ack(sq, addr)
